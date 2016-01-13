@@ -1,0 +1,3 @@
+---
+vbox_snapshot_name: ansible-snapshot
+vbox_network_type: hostonly

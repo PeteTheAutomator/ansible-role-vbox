@@ -1,0 +1,46 @@
+---
+- name: get a list of vm names
+  command: "VBoxManage list vms"
+  register: vm_list
+  failed_when: False    
+  changed_when: False    
+
+- name: ensure the source_vmname is registered
+  assert:
+    that:
+      - "'{{source_vmname}}' in vm_list.stdout"
+
+- name: get a list of hostonly interfaces
+  command: "VBoxManage list hostonlyifs"
+  when: "'{{vbox_network_type}}' == 'hostonly'"
+  register: hostonly_if_list
+  failed_when: False    
+  changed_when: False    
+
+- name: get a list of bridged interfaces
+  command: "VBoxManage list bridgedifs"
+  when: "'{{vbox_network_type}}' == 'bridged'"
+  register: bridged_if_list
+  failed_when: False    
+  changed_when: False    
+
+- name: get snapshots for the source vm
+  command: "VBoxManage snapshot {{source_vmname}} list"
+  register: snapshot_list
+  failed_when: False
+  changed_when: False    
+
+- name: create snapshot
+  command: "VBoxManage snapshot {{source_vmname}} take {{vbox_snapshot_name}}"
+  when: "'This machine does not have any snapshots' in snapshot_list.stdout or 'Name: {{vbox_snapshot_name}}' not in snapshot_list.stdout"
+
+- name: clone the vm
+  command: "VBoxManage clonevm {{source_vmname}} --options link --name {{dest_vmname}} --snapshot {{vbox_snapshot_name}} --register"
+  when: "'{{dest_vmname}}' not in vm_list.stdout"
+
+- name: set networking type
+  command: "VBoxManage modifyvm {{dest_vmname}} --nic1 {{vbox_network_type}}"
+
+- name: configure vm options
+  command: "VBoxManage modifyvm {{dest_vmname}} --{{item.key}} {{item.value}}"
+  with_items: clone_options
